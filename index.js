@@ -4,6 +4,7 @@ const eslint = require('eslint');
 const globby = require('globby');
 const isEqual = require('lodash.isequal');
 const multimatch = require('multimatch');
+const arrify = require('arrify');
 const optionsManager = require('./options-manager');
 
 exports.lintText = (str, opts) => {
@@ -26,10 +27,12 @@ exports.lintText = (str, opts) => {
 		throw new Error('The `ignores` option requires the `filename` option to be defined.');
 	}
 
-	if (opts.ignores && opts.ignores.length > 0 && opts.filename) {
+	if (opts.filename) {
 		const filename = path.relative(opts.cwd, opts.filename);
+		const gitIgnores = optionsManager.getGitIgnores(opts);
+		const glob = [filename].concat(gitIgnores);
 
-		if (multimatch([filename], opts.ignores).length > 0) {
+		if (multimatch(glob, opts.ignores).length > 0) {
 			return {
 				errorCount: 0,
 				warningCount: 0,
@@ -51,13 +54,13 @@ exports.lintText = (str, opts) => {
 
 exports.lintFiles = (patterns, opts) => {
 	opts = optionsManager.preprocess(opts);
+	patterns = patterns.length === 0 ? ['**/*'] : arrify(patterns);
 
-	if (patterns.length === 0) {
-		patterns = '**/*';
-	}
+	const gitIgnores = optionsManager.getGitIgnores(opts);
+	const glob = patterns.concat(gitIgnores);
 
-	return globby(patterns, {ignore: opts.ignores}).then(paths => {
-		// filter out unwanted file extensions
+	return globby(glob, {ignore: opts.ignores, nodir: true}).then(paths => {
+		// Filter out unwanted file extensions
 		// for silly users that don't specify an extension in the glob pattern
 		paths = paths.filter(x => {
 			// Remove dot before the actual extension
@@ -79,7 +82,7 @@ exports.lintFiles = (patterns, opts) => {
 };
 
 function mergeReports(reports) {
-	// merge multiple reports into a single report
+	// Merge multiple reports into a single report
 	let results = [];
 	let errorCount = 0;
 	let warningCount = 0;

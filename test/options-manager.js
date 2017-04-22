@@ -1,8 +1,8 @@
 import path from 'path';
 import test from 'ava';
 import proxyquire from 'proxyquire';
-import parentConfig from './fixtures/nested/package.json';
-import childConfig from './fixtures/nested/child/package.json';
+import parentConfig from './fixtures/nested/package';
+import childConfig from './fixtures/nested/child/package';
 
 process.chdir(__dirname);
 
@@ -40,7 +40,7 @@ test('normalizeOpts: falsie values stay falsie', t => {
 
 test('buildConfig: defaults', t => {
 	const config = manager.buildConfig({});
-	t.true(/[\\\/]\.xo-cache[\\\/]?$/.test(config.cacheLocation));
+	t.true(/[\\/]\.xo-cache[\\/]?$/.test(config.cacheLocation));
 	t.is(config.useEslintrc, false);
 	t.is(config.cache, true);
 	t.is(config.baseConfig.extends[0], 'xo/esnext');
@@ -82,7 +82,7 @@ test('buildConfig: space: 4', t => {
 test('buildConfig: semicolon', t => {
 	const config = manager.buildConfig({semicolon: false});
 	t.deepEqual(config.rules, {
-		'semi': ['error', 'never'],
+		semi: ['error', 'never'],
 		'semi-spacing': ['error', {
 			before: false,
 			after: true
@@ -191,9 +191,10 @@ test('groupConfigs', t => {
 });
 
 test('gitignore', t => {
-	const result = manager.getIgnores({});
-	t.not(result.ignores.indexOf(path.join('foo', '**')), -1);
-	t.not(result.ignores.indexOf(path.join('bar', 'foo.js')), -1);
+	const ignores = manager.getGitIgnores({});
+	t.not(ignores.indexOf('!foo/**'), -1);
+	t.not(ignores.indexOf('!bar/foo.js'), -1);
+	t.not(ignores.indexOf('bar/bar.js'), -1);
 });
 
 test('ignore ignored .gitignore', t => {
@@ -203,9 +204,8 @@ test('ignore ignored .gitignore', t => {
 		]
 	};
 
-	const result = manager.getIgnores(opts);
-
-	t.is(result.ignores.indexOf(path.join('bar', 'foobar', 'bar.js')), -1);
+	const ignores = manager.getGitIgnores(opts);
+	t.is(ignores.indexOf('!bar/foobar/bar.js'), -1);
 });
 
 test('mergeWithPkgConf: use child if closest', t => {

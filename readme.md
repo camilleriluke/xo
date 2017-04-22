@@ -131,7 +131,7 @@ Simply run `$ xo --init` (with any options) to add XO to your package.json or cr
   },
   "devDependencies": {
     "ava": "^0.16.0",
-    "xo": "^0.17.0"
+    "xo": "^0.18.0"
   }
 }
 ```
@@ -296,6 +296,10 @@ XO makes it easy to override configs for specific files. The `overrides` propert
 ### Using a parent's config
 
 If you have a directory structure with nested `package.json` files and you want one of the child manifests to be skipped, you can do so by setting `"xo": false`. For example, when you have separate app and dev `package.json` files with `electron-builder`.
+
+### Monorepo
+
+Put a `package.json` with your config at the root and add `"xo": false` to the `package.json` in your bundled packages.
 
 
 ## FAQ

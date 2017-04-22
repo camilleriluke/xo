@@ -44,10 +44,10 @@ const DEFAULT_CONFIG = {
 	}
 };
 
-function normalizeOpts(opts) {
+const normalizeOpts = opts => {
 	opts = Object.assign({}, opts);
 
-	// alias to help humans
+	// Alias to help humans
 	[
 		'env',
 		'global',
@@ -77,25 +77,23 @@ function normalizeOpts(opts) {
 	return opts;
 }
 
-function mergeWithPkgConf(opts) {
+const mergeWithPkgConf = opts => {
 	opts = Object.assign({cwd: process.cwd()}, opts);
 	const conf = pkgConf.sync('xo', {cwd: opts.cwd, skipOnFalse: true});
 	return Object.assign({}, conf, opts);
 }
 
-// define the shape of deep properties for deepAssign
-function emptyOptions() {
-	return {
-		rules: {},
-		settings: {},
-		globals: [],
-		envs: [],
-		plugins: [],
-		extends: []
-	};
-}
+// Define the shape of deep properties for deepAssign
+const emptyOptions = () => ({
+	rules: {},
+	settings: {},
+	globals: [],
+	envs: [],
+	plugins: [],
+	extends: []
+});
 
-function buildConfig(opts) {
+const buildConfig = opts => {
 	const config = deepAssign(
 		emptyOptions(),
 		DEFAULT_CONFIG,
@@ -106,7 +104,7 @@ function buildConfig(opts) {
 		const spaces = typeof opts.space === 'number' ? opts.space : 2;
 		config.rules.indent = ['error', spaces, {SwitchCase: 1}];
 
-		// only apply if the user has the React plugin
+		// Only apply if the user has the React plugin
 		if (opts.cwd && resolveFrom(opts.cwd, 'eslint-plugin-react')) {
 			config.plugins = config.plugins.concat('react');
 			config.rules['react/jsx-indent-props'] = ['error', spaces];
@@ -146,12 +144,12 @@ function buildConfig(opts) {
 		// TODO: this logic needs to be improved, preferably use the same code as ESLint
 		// user's configs must be resolved to their absolute paths
 		const configs = opts.extends.map(name => {
-			// don't do anything if it's a filepath
+			// Don't do anything if it's a filepath
 			if (pathExists.sync(name)) {
 				return name;
 			}
 
-			// don't do anything if it's a config from a plugin
+			// Don't do anything if it's a config from a plugin
 			if (name.startsWith('plugin:')) {
 				return name;
 			}
@@ -179,7 +177,7 @@ function buildConfig(opts) {
 // The hash value is a binary representation of which elements in the `overrides` array apply to the path.
 //
 // If overrides.length === 4, and only the first and third elements apply, then our hash is: 1010 (in binary)
-function findApplicableOverrides(path, overrides) {
+const findApplicableOverrides = (path, overrides) => {
 	let hash = 0;
 	const applicable = [];
 
@@ -198,12 +196,14 @@ function findApplicableOverrides(path, overrides) {
 	};
 }
 
-function mergeApplicableOverrides(baseOptions, applicableOverrides) {
-	return deepAssign.apply(null, [emptyOptions(), baseOptions].concat(applicableOverrides.map(normalizeOpts)));
+const mergeApplicableOverrides = (baseOptions, applicableOverrides) => {
+	applicableOverrides = applicableOverrides.map(normalizeOpts);
+	const overrides = [emptyOptions(), baseOptions].concat(applicableOverrides);
+	return deepAssign.apply(null, overrides);
 }
 
 // Creates grouped sets of merged options together with the paths they apply to.
-function groupConfigs(paths, baseOptions, overrides) {
+const groupConfigs = (paths, baseOptions, overrides) => {
 	const map = {};
 	const arr = [];
 
@@ -226,29 +226,32 @@ function groupConfigs(paths, baseOptions, overrides) {
 	return arr;
 }
 
-function getIgnores(opts) {
+const getIgnores = opts => {
 	opts.ignores = DEFAULT_IGNORE.concat(opts.ignores || []);
-
-	const gitignores = globby.sync('**/.gitignore', {
-		ignore: opts.ignores,
-		cwd: opts.cwd || process.cwd()
-	});
-
-	const ignores = gitignores
-		.map(pathToGitignore => {
-			const patterns = parseGitignore(pathToGitignore);
-			const base = path.dirname(pathToGitignore);
-
-			return patterns.map(file => path.join(base, file));
-		})
-		.reduce((a, b) => a.concat(b), []);
-
-	opts.ignores = opts.ignores.concat(ignores);
-
 	return opts;
 }
 
-function preprocess(opts) {
+const getGitIgnores = opts => globby
+	.sync('**/.gitignore', {
+		ignore: opts.ignores || [],
+		cwd: opts.cwd || process.cwd()
+	})
+	.map(pathToGitignore => {
+		const patterns = parseGitignore(pathToGitignore);
+		const base = path.posix.dirname(pathToGitignore);
+
+		return patterns
+			.map(pattern => {
+				const negate = !pattern.startsWith('!');
+				const patternPath = negate ? pattern : pattern.substr(1);
+				return {negate, pattern: path.posix.join(base, patternPath)};
+			})
+			.sort(pattern => pattern.negate ? 1 : -1)
+			.map(item => item.negate ? `!${item.pattern}` : item.pattern);
+	})
+	.reduce((a, b) => a.concat(b), []);
+
+const preprocess = opts => {
 	opts = mergeWithPkgConf(opts);
 	opts = normalizeOpts(opts);
 	opts = getIgnores(opts);
@@ -268,3 +271,4 @@ exports.groupConfigs = groupConfigs;
 exports.preprocess = preprocess;
 exports.emptyOptions = emptyOptions;
 exports.getIgnores = getIgnores;
+exports.getGitIgnores = getGitIgnores;
